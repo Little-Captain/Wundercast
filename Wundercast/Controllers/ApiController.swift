@@ -26,82 +26,86 @@ import RxCocoa
 import SwiftyJSON
 
 class ApiController {
-
-  struct Weather {
-    let cityName: String
-    let temperature: Int
-    let humidity: Int
-    let icon: String
-
-    static let empty = Weather(
-      cityName: "Unknown",
-      temperature: -1000,
-      humidity: 0,
-      icon: iconNameToChar(icon: "e")
-    )
-  }
-
-  /// The shared instance
-  static var shared = ApiController()
-
-  /// The api key to communicate with openweathermap.org
-  /// Create you own on https://home.openweathermap.org/users/sign_up
-  private let apiKey = "[YOUR KEY]"
-
-  /// API base URL
-  let baseURL = URL(string: "http://api.openweathermap.org/data/2.5")!
-
-  init() {
-    Logging.URLRequests = { request in
-      return true
+    
+    struct Weather {
+        let cityName: String
+        let temperature: Int
+        let humidity: Int
+        let icon: String
+        
+        static let empty = Weather(
+            cityName: "Unknown",
+            temperature: -1000,
+            humidity: 0,
+            icon: iconNameToChar(icon: "e")
+        )
     }
-  }
-
-  //MARK: - Api Calls
-
-  func currentWeather(city: String) -> Observable<Weather> {
-    // Placeholder call
-    return Observable.just(Weather(cityName: city,
-                                   temperature: 20,
-                                   humidity: 90,
-                                   icon: iconNameToChar(icon: "01d")))
-  }
-
-  //MARK: - Private Methods
-
-  /**
-   * Private method to build a request with RxCocoa
-   */
-  private func buildRequest(method: String = "GET", pathComponent: String, params: [(String, String)]) -> Observable<JSON> {
-
-    let url = baseURL.appendingPathComponent(pathComponent)
-    var request = URLRequest(url: url)
-    let keyQueryItem = URLQueryItem(name: "appid", value: apiKey)
-    let unitsQueryItem = URLQueryItem(name: "units", value: "metric")
-    let urlComponents = NSURLComponents(url: url, resolvingAgainstBaseURL: true)!
-
-    if method == "GET" {
-      var queryItems = params.map { URLQueryItem(name: $0.0, value: $0.1) }
-      queryItems.append(keyQueryItem)
-      queryItems.append(unitsQueryItem)
-      urlComponents.queryItems = queryItems
-    } else {
-      urlComponents.queryItems = [keyQueryItem, unitsQueryItem]
-
-      let jsonData = try! JSONSerialization.data(withJSONObject: params, options: .prettyPrinted)
-      request.httpBody = jsonData
+    
+    /// The shared instance
+    static var shared = ApiController()
+    
+    /// The api key to communicate with openweathermap.org
+    /// Create you own on https://home.openweathermap.org/users/sign_up
+    private let apiKey = "b7df09399978c6080aa16b2af36a5f32"
+    
+    /// API base URL
+    let baseURL = URL(string: "http://api.openweathermap.org/data/2.5")!
+    
+    init() {
+        Logging.URLRequests = { request in
+            return true
+        }
     }
-
-    request.url = urlComponents.url!
-    request.httpMethod = method
-
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-    let session = URLSession.shared
-
-    return session.rx.data(request: request).map { JSON(data: $0) }
-  }
-
+    
+    //MARK: - Api Calls
+    func currentWeather(city: String) -> Observable<Weather> {
+        return buildRequest(pathComponent: "weather", params: [("q", city)]).map {
+            Weather(cityName: $0["name"].string ?? "Unknown",
+                    temperature: $0["main"]["temp"].int ?? -1000,
+                    humidity: $0["main"]["humidity"].int ?? 0,
+                    icon: iconNameToChar(icon: $0["weather"][0]["icon"].string ?? "e"))
+        }
+    }
+    
+    //MARK: - Private Methods
+    
+    /**
+     * Private method to build a request with RxCocoa
+     */
+    private func buildRequest(method: String = "GET",
+                              pathComponent: String,
+                              params: [(String, String)]) -> Observable<JSON> {
+        let url = baseURL.appendingPathComponent(pathComponent)
+        var request = URLRequest(url: url)
+        let keyQueryItem = URLQueryItem(name: "appid", value: apiKey)
+        let unitsQueryItem = URLQueryItem(name: "units", value: "metric")
+        let urlComponents = NSURLComponents(url: url, resolvingAgainstBaseURL: true)!
+        
+        if method == "GET" {
+            var queryItems = params.map { URLQueryItem(name: $0.0, value: $0.1) }
+            queryItems.append(keyQueryItem)
+            queryItems.append(unitsQueryItem)
+            urlComponents.queryItems = queryItems
+        } else {
+            urlComponents.queryItems = [keyQueryItem, unitsQueryItem]
+            let jsonData = try! JSONSerialization.data(withJSONObject: params, options: .prettyPrinted)
+            request.httpBody = jsonData
+        }
+        
+        request.url = urlComponents.url!
+        request.httpMethod = method
+        
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let session = URLSession.shared
+        
+        return session
+            .rx.data(request: request)
+            .map { try? JSON(data: $0) }
+            .filter { $0 != nil }
+            .map { $0! }
+    }
+    
 }
 
 /**
@@ -109,30 +113,30 @@ class ApiController {
  * Source: http://openweathermap.org/weather-conditions
  */
 public func iconNameToChar(icon: String) -> String {
-  switch icon {
-  case "01d":
-    return "\u{f11b}"
-  case "01n":
-    return "\u{f110}"
-  case "02d":
-    return "\u{f112}"
-  case "02n":
-    return "\u{f104}"
-  case "03d", "03n":
-    return "\u{f111}"
-  case "04d", "04n":
-    return "\u{f111}"
-  case "09d", "09n":
-    return "\u{f116}"
-  case "10d", "10n":
-    return "\u{f113}"
-  case "11d", "11n":
-    return "\u{f10d}"
-  case "13d", "13n":
-    return "\u{f119}"
-  case "50d", "50n":
-    return "\u{f10e}"
-  default:
-    return "E"
-  }
+    switch icon {
+    case "01d":
+        return "\u{f11b}"
+    case "01n":
+        return "\u{f110}"
+    case "02d":
+        return "\u{f112}"
+    case "02n":
+        return "\u{f104}"
+    case "03d", "03n":
+        return "\u{f111}"
+    case "04d", "04n":
+        return "\u{f111}"
+    case "09d", "09n":
+        return "\u{f116}"
+    case "10d", "10n":
+        return "\u{f113}"
+    case "11d", "11n":
+        return "\u{f10d}"
+    case "13d", "13n":
+        return "\u{f119}"
+    case "50d", "50n":
+        return "\u{f10e}"
+    default:
+        return "E"
+    }
 }
