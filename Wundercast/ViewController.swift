@@ -145,6 +145,17 @@ class ViewController: UIViewController {
         mapView
             .rx.setDelegate(self)
             .disposed(by: bag)
+        
+        mapInput
+            .flatMap {
+                ApiController.shared
+                    .currentWeatherAround(lat: $0.latitude, lon: $0.longitude)
+                    .catchErrorJustReturn([])
+            }
+            .asDriver(onErrorJustReturn: [])
+            .map { $0.map { $0.overlay() } }
+            .drive(mapView.rx.overlays)
+            .disposed(by: bag)
     }
     
     override func viewDidAppear(_ animated: Bool) {
