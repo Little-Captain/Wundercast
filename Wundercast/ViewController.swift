@@ -79,6 +79,12 @@ class ViewController: UIViewController {
                     .catchErrorJustReturn(.dummy)
         }
         
+        geoSearch
+            .asDriver(onErrorJustReturn: .dummy)
+            .map { $0.coordinate }
+            .drive(mapView.rx.location)
+            .disposed(by: bag)
+        
         // 有效的搜索文本 Observable
         let searchInput = searchCityName
             .rx.controlEvent(.editingDidEndOnExit).asObservable()
@@ -95,6 +101,12 @@ class ViewController: UIViewController {
         // 搜索文本 -> 网络结果 Observable
         let textSearch = searchInput
             .flatMapLatest { ApiController.shared.currentWeather(city: $0).catchErrorJustReturn(.dummy) }
+        
+        textSearch
+            .asDriver(onErrorJustReturn: .dummy)
+            .map { $0.coordinate }
+            .drive(mapView.rx.location)
+            .disposed(by: bag)
         
         let mapSearch = mapInput
             .flatMapLatest {

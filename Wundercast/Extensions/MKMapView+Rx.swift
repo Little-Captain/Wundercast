@@ -72,6 +72,13 @@ extension Reactive where Base: MKMapView {
         return ControlEvent(events: source)
     }
     
+    var location: Binder<CLLocationCoordinate2D> {
+        return Binder(self.base) {
+            let span = MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2)
+            $0.region = MKCoordinateRegion(center: $1, span: span)
+        }
+    }
+    
 }
 
 
