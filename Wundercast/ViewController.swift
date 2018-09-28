@@ -31,26 +31,46 @@ class ViewController: UIViewController {
     @IBOutlet weak var humidityLabel: UILabel!
     @IBOutlet weak var iconLabel: UILabel!
     @IBOutlet weak var cityNameLabel: UILabel!
+    @IBOutlet weak var tempSwitch: UISwitch!
     
     let bag = DisposeBag()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         style()
-        let search = searchCityName
-            .rx.text
+        
+//        let search = searchCityName
+//            .rx.controlEvent(.editingDidEndOnExit).asObservable()
+//            .withLatestFrom(searchCityName.rx.text)
+//            .filter { ($0 ?? "").count > 0 }
+//            .flatMapLatest { ApiController.shared.currentWeather(city: $0 ?? "Error").catchErrorJustReturn(.empty) }
+//            .asDriver(onErrorJustReturn: .empty)
+//
+//        search.map { "\($0.temperature)° C" }.drive(tempLabel.rx.text).disposed(by: bag)
+//        search.map { $0.icon }.drive(iconLabel.rx.text).disposed(by: bag)
+//        search.map { "\($0.humidity)%" }.drive(humidityLabel.rx.text).disposed(by: bag)
+//        search.map { $0.cityName }.drive(cityNameLabel.rx.text).disposed(by: bag)
+        
+        // Challenge 1: Switch from Celsius to Fahrenheit
+        let textSearch = searchCityName
+            .rx.controlEvent(.editingDidEndOnExit).asObservable()
+        let temperature = tempSwitch
+            .rx.controlEvent(.valueChanged).asObservable()
+        let search = Observable.from([textSearch, temperature])
+            .merge()
+            .withLatestFrom(searchCityName.rx.text)
             .filter { ($0 ?? "").count > 0 }
-            .flatMapLatest {
-                ApiController.shared
-                    .currentWeather(city: $0 ?? "Error")
-                    .catchErrorJustReturn(.empty)
-            }
+            .flatMapLatest { ApiController.shared.currentWeather(city: $0 ?? "Error").catchErrorJustReturn(.empty) }
             .asDriver(onErrorJustReturn: .empty)
         
-//        search.map { "\($0.temperature)° C" }.bind(to: tempLabel.rx.text).disposed(by: bag)
-//        search.map { $0.icon }.bind(to: iconLabel.rx.text).disposed(by: bag)
-//        search.map { "\($0.humidity)%" }.bind(to: humidityLabel.rx.text).disposed(by: bag)
-//        search.map { $0.cityName }.bind(to: cityNameLabel.rx.text).disposed(by: bag)
+        Observable.combineLatest(search.asObservable(), tempSwitch.rx.isOn)
+            .map { $1 ? "\(Int(Double($0.temperature) * 1.8 + 32))° F" : "\($0.temperature)° C" }
+            .asDriver(onErrorJustReturn: "")
+            .drive(tempLabel.rx.text)
+            .disposed(by: bag)
+        search.map { $0.icon }.drive(iconLabel.rx.text).disposed(by: bag)
+        search.map { "\($0.humidity)%" }.drive(humidityLabel.rx.text).disposed(by: bag)
+        search.map { $0.cityName }.drive(cityNameLabel.rx.text).disposed(by: bag)
     }
     
     override func viewDidAppear(_ animated: Bool) {
